@@ -9,7 +9,12 @@ function autoload($class_name)
         $root = __DIR__.'/';
 
         $files = array(
-            'MFS\Bliki\App' => $root.'App.class.php',
+            'MFS\Bliki\App'             => $root.'App.class.php',
+            'MFS\Bliki\BlogHandler'     => $root.'space handlers/BlogHandler.class.php',
+            'MFS\Bliki\ErrorHandler'    => $root.'space handlers/ErrorHandler.class.php',
+
+            'MFS\Bliki\RuntimeException'    => $root.'exceptions.php',
+            'MFS\Bliki\Error404Exception'   => $root.'exceptions.php',
         );
     }
 

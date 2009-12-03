@@ -22,9 +22,25 @@ class App
     {
         $req = $this->parsePath($context['env']['REQUEST_URI']);
 
-        return array(200, array('Content-type', 'text/html; charset=utf-8'), $this->template($req['space_type'], $req['data_path']));
+        try {
+            $body = $this->template($req['space_type'], $req['space_mode'], $req['data_path'], $req['args']);
+            $status = 200;
+        } catch (Error404Exception $e) {
+            $body = $this->template('Error', '404', '', array());
+            $status = 404;
+        } catch (\Exception $e) {
+            $body = $this->template('Error', '500', '', array($e->getMessage()));
+            $status = 500;
+        }
+
+        return array(
+            $status,
+            array('Content-type', 'text/html; charset=utf-8'),
+            $body
+        );
     }
 
+    // routing
     public function parsePath($req_path)
     {
         $spc_root = $this->_root.'/spaces/';
@@ -39,53 +55,50 @@ class App
 
         $space_settings = yaml::load_file($spc_root.'/'.$space.'/settings.yaml');
 
-        if (isset($parts[1])) {
-            if (file_exists($spc_root.'/'.$space.'/'.implode('/', $parts))) {
-                $mode = 'article';
-            } else {
-                throw new Exception();
+        if (isset($parts[0])) {
+            $path = '';
+
+            while (count($parts) > 0) {
+                if (!file_exists($spc_root.$space.'/'.$path.'/'.$parts[0])) {
+                    break;
+                }
+
+                if (!empty($path))
+                    $path .= '/';
+                $path .= array_shift($parts);
             }
+
+            $_path = $spc_root.'/'.$space.'/'.$path;
+            if (is_dir($_path)) {
+                $mode = 'index';
+            } else {
+                $mode = 'article';
+            }
+
+            $args = $parts;
         } else {
             $mode = 'index';
+            $args = array();
         }
 
         return array(
-            'space_type' => $space_settings['type'].'_'.$mode,
-            'data_path' => '/blog/2009/12/02/hello_world.html'
+            'space_type' => $space_settings['type'],
+            'space_mode' => $mode,
+            'data_path' => $space.'/'.$path,
+            'args' => $args
         );
     }
 
-    public function parseFile($path)
+    public function template($type, $mode, $path, array $args)
     {
-        $data = file_get_contents($path);
-        $div = strpos($data, "\n\n");
+        $class = __NAMESPACE__.'\\'.$type.'Handler';
+        $handler = new $class();
 
-        $headers_strs = explode("\n", substr($data, 0, $div));
-        $headers = array();
-
-        array_walk(
-            $headers_strs,
-            function($elt) use (&$headers) {
-                $div = strpos($elt, ': ');
-                $headers[substr($elt, 0, $div)] = substr($elt, $div + 2);
-            }
-        );
-
-        $body = substr($data, $div + 2);
-
-        return array($headers, $body);
-    }
-
-    public function template($type, $path)
-    {
-        $res = $this->parseFile($this->_root.'/spaces'.$path);
+        $data = $handler->getData($mode, $this->_root.'/spaces/'.$path, $args);
 
         return $this->tpl_engine->render(
-            $type,
-            array(
-                'title' => $res[0]['Title'],
-                'content' => $res[1],
-            )
+            $type.'_'.$mode,
+            $data
         );
     }
 }
