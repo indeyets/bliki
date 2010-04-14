@@ -1,0 +1,12 @@
+---
+# use "aip" tool to run this file
+servers:
+  -
+    protocol: HTTP
+    socket: 'tcp://127.0.0.1:8080'
+    min-children: 1
+    max-children: 10
+    app:
+      class: MFS\Bliki\App
+      file: app/autoload.php
+      middlewares: []
